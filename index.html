@@ -1,87 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <title>OBJ + MTL Viewer</title>
-    <style>
-      body { margin: 0; }
-      canvas { display: block; }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/MTLLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/OBJLoader.js"></script>
-  </head>
-  <body>
-    <script>
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x808080); // grey background
+<head>
+  <meta charset="UTF-8">
+  <title>3D OBJ + MTL Model Viewer</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      background: #222; /* fallback if WebGL fails */
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <!-- Loaders -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/MTLLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/OBJLoader.js"></script>
+  <!-- Controls -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+  
+  <script>
+    // Scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x444444); // force grey background
 
-      const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 2, 5); // pull camera back
+    // Camera
+    const camera = new THREE.PerspectiveCamera(
+      60, window.innerWidth / window.innerHeight, 0.1, 1000
+    );
+    camera.position.set(0, 2, 8);
 
-      const renderer = new THREE.WebGLRenderer({antialias: true});
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      document.body.appendChild(renderer.domElement);
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setClearColor(0x444444); // second way to force grey
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-      // Controls
-      const controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
+    // Controls
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-      // Lights
-      const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
-      hemiLight.position.set(0, 20, 0);
-      scene.add(hemiLight);
+    // Lights
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(10, 20, 10);
+    scene.add(light);
 
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      dirLight.position.set(5, 10, 7.5);
-      scene.add(dirLight);
+    // Test cube (always visible)
+    const cube = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0x00ff00 })
+    );
+    scene.add(cube);
 
-      // Helpers
-      scene.add(new THREE.GridHelper(10, 10));
-      scene.add(new THREE.AxesHelper(5));
+    // Load OBJ + MTL
+    const mtlLoader = new THREE.MTLLoader();
+    mtlLoader.load(
+      "https://raw.githubusercontent.com/Pixeling-Dev/tinker.obj-host/refs/heads/main/obj.mtl",
+      function(materials) {
+        materials.preload();
 
-      // Load MTL + OBJ
-      const mtlLoader = new THREE.MTLLoader();
-      mtlLoader.load(
-        "https://raw.githubusercontent.com/Pixeling-Dev/tinker.obj-host/refs/heads/main/obj.mtl",
-        (materials) => {
-          materials.preload();
-
-          const objLoader = new THREE.OBJLoader();
-          objLoader.setMaterials(materials);
-
-          objLoader.load(
-            "https://raw.githubusercontent.com/Pixeling-Dev/tinker.obj-host/refs/heads/main/tinker.obj",
-            (object) => {
-              object.position.set(0, 0, 0);
-              object.scale.set(0.1, 0.1, 0.1); // shrink if needed
-              scene.add(object);
-              console.log("OBJ loaded:", object);
-            },
-            (xhr) => {
-              console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-            },
-            (error) => {
-              console.error("Error loading OBJ:", error);
-            }
-          );
-        }
-      );
-
-      // Animate
-      function animate() {
-        requestAnimationFrame(animate);
-        controls.update();
-        renderer.render(scene, camera);
+        const objLoader = new THREE.OBJLoader();
+        objLoader.setMaterials(materials);
+        objLoader.load(
+          "https://raw.githubusercontent.com/Pixeling-Dev/tinker.obj-host/refs/heads/main/tinker.obj",
+          function(object) {
+            object.scale.set(0.05, 0.05, 0.05); // shrink
+            scene.add(object);
+          },
+          undefined,
+          function(error) {
+            console.error("Error loading OBJ:", error);
+          }
+        );
       }
-      animate();
+    );
 
-      window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      });
-    </script>
-  </body>
+    // Animate
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Rotate cube so you always see motion
+      cube.rotation.x += 0.01;
+      cube.rotation.y += 0.01;
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Resize handling
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
 </html>
